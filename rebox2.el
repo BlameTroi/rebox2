@@ -1,5 +1,10 @@
 ;;; rebox2.el --- Handling of comment boxes in various styles.
 
+;;
+;; a personal copy that i'm trying to add fortran 90+ support for
+;; Troy Brumley, February 2024.
+;;
+
 ;; Filename: rebox2.el
 ;; Description:
 ;; Author: François Pinard
@@ -267,6 +272,7 @@
 
 (eval-when-compile
   (require 'filladapt nil t)
+;;  (require 'cl-lib))
   (require 'cl))
 
 ;; functions passed to rebox-engine inspect these variables
@@ -289,6 +295,7 @@
   (defvar previous-regexp1)
   (defvar curr-regexp1)
   (defvar orig-func)
+	;; shut up flycheck
   )
 
 
@@ -920,19 +927,20 @@ header.
 ;; Template numbering dependent code.
 
 (defvar rebox-language-character-alist
-  '((3 . "/") (4 . "#") (5 . ";") (6 . "%"))
+  '((3 . "/") (4 . "#") (5 . ";") (6 . "%") (7 . "!"))
   "Alist relating language to comment character, for generic languages.")
 
 ;;; Regexp to match the comment start, given a LANGUAGE value as index.
 
 (defvar rebox-regexp-start
-  ["^[ \t]*\\(/\\*\\|//+\\|#+\\|;+\\|%+\\)"
+  ["^[ \t]*\\(/\\*\\|//+\\|#+\\|;+\\|%+\\|!+\\)"
    "^"                                  ; 1
    "^[ \t]*/\\*"                        ; 2
    "^[ \t]*//+"                         ; 3
    "^[ \t]*#+"                          ; 4
    "^[ \t]*\;+"                         ; 5
    "^[ \t]*%+"                          ; 6
+   "^[ \t]*!+"                          ; 7
    ])
 
 
@@ -948,8 +956,8 @@ header.
 (defun rebox-register-all-templates ()
   (setq rebox-style-hash (make-hash-table :test 'eq :size 200))
   (dolist (template rebox-templates)
-    (rebox-register-template (first template)
-                             (second template)
+    (rebox-register-template (cl-first template)
+                             (cl-second template)
                              (nthcdr 2 template))))
 
 
@@ -1176,7 +1184,7 @@ If style isn't found return first style."
                            (nth new-index can-loop)
                            c-start))
           (when (gethash new-style rebox-style-hash)
-            (return new-style)))
+            (cl-return new-style)))
         (signal 'rebox-invalid-style-error (list (format "no valid style found in loop: %s" style-loop))))))
 
 (defun rebox-make-fill-prefix ()
@@ -1707,7 +1715,7 @@ With numeric arg, use explicit style.
            (error "invalid argument -- `%s'" arg)))
     (save-restriction
       (condition-case err
-          (flet ((work (r-beg r-end &optional preserve-region)
+          (cl-flet ((work (r-beg r-end &optional preserve-region)
                        (narrow-to-region r-beg r-end)
                        (setq previous-style (rebox-guess-style))
                        (cond ((eq arg 'keep-style)
@@ -1815,7 +1823,7 @@ With numeric arg, use explicit style.
             (if (eq previous-style 111)
                 (signal 'rebox-error '("style is 111"))
               (if (eq last-command 'yank)
-                  (assert (eq (gethash :last-style (rebox-cache)) previous-style))
+                  (cl-assert (eq (gethash :last-style (rebox-cache)) previous-style))
                 (puthash :last-style previous-style (rebox-cache)))
               (rebox-engine :style previous-style
                             :marked-point orig-m
@@ -2291,14 +2299,14 @@ returns guess as single digit."
     ;; consider doxygen header row which is two consecutive comments:
     ;;
     ;;     "/********//**"
-    (loop
+    (cl-loop
      with temp = comment-start-pos
      while temp
      do (progn
           (goto-char temp)
           (skip-chars-backward " \t")
           (if (bolp)
-              (return)
+              (cl-return)
             (backward-char)
             (when (setq temp (comment-beginning))
               (setq comment-start-pos temp)))))
@@ -2634,7 +2642,7 @@ box STYLE."
                       margin) right-margin))
       (setq bottom-title (concat bottom-title (vector ss))
             temp-mod t))
-    (when temp-mod (incf right-margin))
+    (when temp-mod (cl-incf right-margin))
 
     ;; Construct the top line.
     (goto-char (point-min))
